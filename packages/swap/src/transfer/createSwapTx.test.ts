@@ -116,6 +116,7 @@ describe('createSwapTx', () => {
 
     expect(result).toEqual({
       amountOut: 900n,
+      minDestinationAmount: 900n,
       txs: [dummyTxPapi],
     });
   });

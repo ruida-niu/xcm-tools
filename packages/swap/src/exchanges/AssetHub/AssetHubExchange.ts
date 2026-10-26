@@ -18,6 +18,7 @@ import type {
   TMultiSwapResult,
   TSingleSwapResult,
 } from '../../types';
+import { applySlippageFloor } from '../../utils';
 import ExchangeChain from '../ExchangeChain';
 import { getDexConfig } from './utils';
 
@@ -101,9 +102,18 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
 
     if (finalAmountOut <= 0n) throw new AmountTooLowError();
 
+    // The swap extrinsic only guarantees `minAmountOut` (the user's slippage
+    // floor). Any follow-on transfer funded by this swap must therefore never
+    // request more than that floor minus the reserved destination fee, or the
+    // composed batch fails on every price move inside the allowed slippage.
+    const minDestinationAmount = minAmountOut - padValueBy(toDestFeeCurrencyTo, FEE_BUFFER_PCT);
+
+    if (minDestinationAmount <= 0n) throw new AmountTooLowError();
+
     return {
       tx,
       amountOut: finalAmountOut,
+      minDestinationAmount,
     };
   }
 
@@ -134,6 +144,7 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
       return {
         txs: [singleSwapResult.tx],
         amountOut: singleSwapResult.amountOut,
+        minDestinationAmount: singleSwapResult.minDestinationAmount,
       };
     } else {
       // Multi-hop: AssetA -> Native -> AssetB
@@ -175,6 +186,7 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
       return {
         txs: [resultHop1.tx, resultHop2.tx],
         amountOut: resultHop2.amountOut,
+        minDestinationAmount: resultHop2.minDestinationAmount,
       };
     }
   }
@@ -182,7 +194,7 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
   async getAmountOut<TApi, TRes, TSigner, TCustomChain extends string = never>(
     options: TGenericGetAmountOutOptions<TApi, TRes, TSigner, TCustomChain>,
   ) {
-    const { api, assetFrom, assetTo, amount, origin } = options;
+    const { api, assetFrom, assetTo, amount, origin, slippagePct } = options;
 
     const nativeAsset = getExchangeAsset(this.chain, {
       symbol: getNativeAssetSymbol(this.chain),
@@ -203,12 +215,13 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
     const amountWithoutFee = padValueBy(amount, pctDestFee);
 
     if (isAssetFromNative || isAssetToNative) {
-      return this.quoteOrThrow(
+      const amountOut = await this.quoteOrThrow(
         api,
         localizeLocation(this.chain, assetFrom.location),
         localizeLocation(this.chain, assetTo.location),
         amountWithoutFee,
       );
+      return applySlippageFloor(amountOut, slippagePct);
     } else {
       const hop1AmountOut = await this.quoteOrThrow(
         api,
@@ -238,7 +251,7 @@ class AssetHubExchange extends ExchangeChain<'GENERIC'> {
         );
       }
 
-      return finalAmountOut;
+      return applySlippageFloor(finalAmountOut, slippagePct);
     }
   }
 

@@ -69,6 +69,7 @@ describe('buildTransactions', () => {
       swapTxs: ['swapTx'],
       toDestTx: undefined,
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
   });
 
@@ -97,6 +98,7 @@ describe('buildTransactions', () => {
       swapTxs: ['swapTx'],
       toDestTx: undefined,
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     const res = await buildTransactions({ chain: 'Acala' } as ExchangeChain, baseOptions);
@@ -125,6 +127,7 @@ describe('buildTransactions', () => {
       swapTxs: ['swapTx'],
       toDestTx: 'toDestTx',
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     const res = await buildTransactions({ chain: 'Acala' } as ExchangeChain, {
@@ -151,6 +154,7 @@ describe('buildTransactions', () => {
       swapTxs: ['swapTx'],
       toDestTx: 'toDestTx',
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     const res = await buildTransactions({ chain: 'Acala' } as ExchangeChain, {

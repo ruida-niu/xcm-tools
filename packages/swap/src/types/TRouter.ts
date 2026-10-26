@@ -120,11 +120,22 @@ export type TExtrinsic<TRes> = Extrinsic | TPapiTransaction | TRes;
 export type TSingleSwapResult<TRes> = {
   tx: TExtrinsic<TRes>;
   amountOut: bigint;
+  /**
+   * The lowest destination amount the swap can deliver once the slippage
+   * protection on the swap extrinsic is exercised. Any follow-on transfer
+   * built from this swap must not request more than this, otherwise the
+   * composed batch fails whenever the price moves inside the slippage the
+   * user allowed. When omitted, no slippage-protected floor is known and the
+   * raw `amountOut` is the only figure available.
+   */
+  minDestinationAmount?: bigint;
 };
 
 export type TMultiSwapResult<TRes> = {
   txs: TExtrinsic<TRes>[];
   amountOut: bigint;
+  /** Slippage-protected floor of the final hop output. See TSingleSwapResult. */
+  minDestinationAmount?: bigint;
 };
 
 /**
@@ -363,6 +374,11 @@ export type TPreparedExtrinsics<TRes> = {
   isExecute?: boolean;
   toDestTx?: TRes;
   amountOut: bigint;
+  /**
+   * Slippage-protected floor used to size the destination transfer. Falls
+   * back to `amountOut` when the exchange does not report a protected floor.
+   */
+  minDestinationAmount: bigint;
 };
 
 export type TBuildToExchangeTxOptions<TApi, TRes, TSigner, TCustomChain extends string = never> = {

@@ -19,6 +19,7 @@ import type {
   TCallDexAmountOutOverrides,
   TSwapTransformedOptions,
 } from '../../types';
+import { applySlippageFloor } from '../../utils';
 import { pickExchangeApiVariant } from './buildExchangeApiVariant';
 
 export const callDexAmountOut = <TApi, TRes, TSigner, TCustomChain extends string = never>(
@@ -54,7 +55,11 @@ export const buildSwapExecuteTx = async <TApi, TRes, TSigner, TCustomChain exten
   } = options;
 
   const amt = overrides.amount ?? amount;
-  const minAmountOutSlippage = overrides.feeEstimation ? '1' : undefined;
+  // Fee estimation only needs a well-formed payload, so a nominal 1% floor is
+  // fine there. A real build must protect the destination amount with the
+  // slippage the user actually chose, otherwise the execute payload carries an
+  // unprotected minimum and fails on any price move inside the allowed range.
+  const minAmountOutSlippage = overrides.feeEstimation ? '1' : (options.slippagePct ?? '1');
 
   const amountOut = await callDexAmountOut(dex, options, { amount: amt });
 
@@ -64,7 +69,14 @@ export const buildSwapExecuteTx = async <TApi, TRes, TSigner, TCustomChain exten
     exchangeChain: exchange.chain,
     destChain: destination?.chain,
     assetInfoFrom: { ...(origin?.assetFrom ?? exchange.assetFrom), amount: amt },
-    assetInfoTo: { ...exchange.assetTo, amount: amountOut },
+    // Pre-apply the user's slippage floor so the destination amount is
+    // protected even when no origin chain triggers the recalculation below.
+    // When a recalculation happens it replaces this value with a fresh quote
+    // carrying the same floor, so the slippage is never applied twice.
+    assetInfoTo: {
+      ...exchange.assetTo,
+      amount: applySlippageFloor(amountOut, minAmountOutSlippage),
+    },
     currencyTo,
     feeAssetInfo: origin?.feeAssetInfo ?? exchange.feeAssetInfo,
     sender: evmSenderAddress ?? sender,

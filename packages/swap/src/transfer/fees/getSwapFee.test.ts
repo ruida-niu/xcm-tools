@@ -48,6 +48,7 @@ describe('getSwapFee', () => {
     vi.mocked(createSwapTx).mockResolvedValue({
       txs: ['dummyTx'],
       amountOut: 100n,
+      minDestinationAmount: 100n,
     });
     vi.mocked(getOriginXcmFee).mockResolvedValue({
       fee: 1n,
@@ -85,6 +86,7 @@ describe('getSwapFee', () => {
     vi.mocked(createSwapTx).mockResolvedValue({
       txs: ['tx0'],
       amountOut: 150n,
+      minDestinationAmount: 150n,
     });
     vi.mocked(getOriginXcmFee).mockResolvedValue({
       fee: 1n,
@@ -141,6 +143,7 @@ describe('getSwapFee', () => {
     vi.mocked(createSwapTx).mockResolvedValue({
       txs: ['dummyTx'],
       amountOut: 100n,
+      minDestinationAmount: 100n,
     });
     const error = new Error('fee error');
     vi.mocked(getOriginXcmFee).mockRejectedValue(error);
@@ -153,6 +156,7 @@ describe('getSwapFee', () => {
     vi.mocked(createSwapTx).mockResolvedValue({
       txs: ['dummyTx'],
       amountOut: 200n,
+      minDestinationAmount: 200n,
     });
     vi.mocked(getOriginXcmFee).mockResolvedValue({
       fee: 0n,
@@ -174,6 +178,7 @@ describe('getSwapFee', () => {
     vi.mocked(createSwapTx).mockResolvedValue({
       txs: ['dummyTx'],
       amountOut: 200n,
+      minDestinationAmount: 200n,
     });
     vi.mocked(getOriginXcmFee).mockResolvedValue({
       fee: 0n,

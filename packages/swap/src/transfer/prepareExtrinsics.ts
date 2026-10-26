@@ -25,7 +25,10 @@ export const prepareExtrinsics = async <TApi, TRes, TSigner, TCustomChain extend
   if (canUseExecuteTransfer(dex, options)) {
     try {
       const { tx, amountOut } = await buildSwapExecuteTx(dex, options);
-      return { swapTxs: [tx], isExecute: true, amountOut };
+      // The execute payload carries its own slippage-protected minimum
+      // internally (via calculateMinAmountOut), so the reported amountOut is
+      // already the protected figure for the composed call.
+      return { swapTxs: [tx], isExecute: true, amountOut, minDestinationAmount: amountOut };
     } catch (error) {
       if (!isFilteredError(error)) throw error;
       // Fall through to three-leg path
@@ -41,19 +44,22 @@ export const prepareExtrinsics = async <TApi, TRes, TSigner, TCustomChain extend
       : undefined;
 
   // 2. Create swap in DEX (always)
-  const { txs: swapTxs, amountOut } = await createSwapTx(dex, options);
+  const { txs: swapTxs, amountOut, minDestinationAmount } = await createSwapTx(dex, options);
 
-  // 3. Create transfer exchange -> destination (optional)
+  // 3. Create transfer exchange -> destination (optional). The transfer must
+  // never request more than the slippage-protected floor of the swap output,
+  // otherwise the all-or-nothing batch fails on every price move inside the
+  // slippage the user explicitly allowed.
   const toDestTx =
     destination && destination.chain !== exchange.chain
       ? await buildFromExchangeExtrinsic({
           exchange,
           destination,
-          amount: amountOut,
+          amount: minDestinationAmount,
           sender,
           api,
         })
       : undefined;
 
-  return { toExchangeTx, swapTxs, toDestTx, amountOut: BigInt(amountOut) };
+  return { toExchangeTx, swapTxs, toDestTx, amountOut: BigInt(amountOut), minDestinationAmount };
 };

@@ -63,5 +63,11 @@ export const createSwapTx = async <TApi, TRes, TSigner, TCustomChain extends str
     swapResult.txs.map((tx) => convertTxToTarget(tx, options.exchange.api)),
   );
 
-  return { txs, amountOut: swapResult.amountOut };
+  return {
+    txs,
+    amountOut: swapResult.amountOut,
+    // Exchanges that do not report a slippage-protected floor keep the
+    // historical behavior: the destination leg is sized on the raw quote.
+    minDestinationAmount: swapResult.minDestinationAmount ?? swapResult.amountOut,
+  };
 };

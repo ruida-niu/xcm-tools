@@ -62,6 +62,7 @@ describe('prepareExtrinsics', () => {
     vi.mocked(createSwapTxModule.createSwapTx).mockResolvedValue({
       txs: ['swapTx'],
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
   });
 
@@ -77,6 +78,7 @@ describe('prepareExtrinsics', () => {
       swapTxs: ['swapTx'],
       toDestTx: undefined,
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     expect(mockBuildTo).not.toHaveBeenCalled();
@@ -97,6 +99,7 @@ describe('prepareExtrinsics', () => {
       swapTxs: ['swapTx'],
       toDestTx: undefined,
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     expect(mockBuildTo).toHaveBeenCalledWith(
@@ -117,9 +120,32 @@ describe('prepareExtrinsics', () => {
       swapTxs: ['swapTx'],
       toDestTx: 'toDestTx',
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
 
     expect(mockBuildFrom).toHaveBeenCalledWith(expect.objectContaining({ amount: 1000n }));
+  });
+
+  test('sizes the destination transfer on the slippage floor, not the raw quote', async () => {
+    vi.mocked(createSwapTxModule.createSwapTx).mockResolvedValue({
+      txs: ['swapTx'],
+      amountOut: 2000n,
+      minDestinationAmount: 1900n,
+    });
+    mockBuildFrom.mockResolvedValue('toDestTx');
+
+    const res = await prepareExtrinsics(dexChain, {
+      ...baseOptions,
+      origin: { ...baseOptions.origin, chain: 'Acala' } as TOriginInfo<unknown>,
+    });
+
+    expect(res.minDestinationAmount).toEqual(1900n);
+    expect(res.amountOut).toEqual(2000n);
+    // The composed batch is all-or-nothing: requesting more than the
+    // slippage-protected floor would fail the whole batch on every price
+    // move inside the slippage the user allowed.
+    expect(mockBuildFrom).toHaveBeenCalledWith(expect.objectContaining({ amount: 1900n }));
+    expect(mockBuildFrom).not.toHaveBeenCalledWith(expect.objectContaining({ amount: 2000n }));
   });
 
   test('creates all three extrinsics when both origin & destination differ', async () => {
@@ -133,6 +159,7 @@ describe('prepareExtrinsics', () => {
       swapTxs: ['swapTx'],
       toDestTx: 'toDestTx',
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
   });
 
@@ -169,6 +196,7 @@ describe('prepareExtrinsics', () => {
     expect(res).toEqual({
       swapTxs: ['handleSwapExecuteTransferTx'],
       amountOut: 500n,
+      minDestinationAmount: 500n,
       isExecute: true,
     });
 
@@ -183,7 +211,7 @@ describe('prepareExtrinsics', () => {
       },
       assetInfoTo: {
         ...optionsWithAssetHub.exchange.assetTo,
-        amount: 500n,
+        amount: 495n,
       },
       currencyTo: undefined,
       feeAssetInfo: undefined,
@@ -273,6 +301,7 @@ describe('prepareExtrinsics', () => {
       swapTxs: ['swapTx'],
       toDestTx: 'toDestTx',
       amountOut: 1000n,
+      minDestinationAmount: 1000n,
     });
     expect(createSwapTxModule.createSwapTx).toHaveBeenCalledWith(
       assetHubDexChain,
