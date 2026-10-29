@@ -78,6 +78,46 @@ describe('normalizeCustomAssets', () => {
     expect(result).toEqual({ Acala: [entry] })
   })
 
+  it('throws CustomAssetConflictError when two overlay entries share one location', () => {
+    const location = { parents: 1, interior: { X1: { GeneralIndex: '999' } } }
+    expect(() =>
+      normalizeCustomAssets({
+        Acala: [
+          overlayAsset({ symbol: 'ONE', location }),
+          overlayAsset({ symbol: 'TWO', location })
+        ]
+      })
+    ).toThrow(/duplicates custom asset 'ONE'/)
+  })
+
+  it('rejects overlay-internal duplicates even when the later entry sets forceOverride', () => {
+    const location = { parents: 1, interior: { X1: { GeneralIndex: '999' } } }
+    expect(() =>
+      normalizeCustomAssets({
+        Acala: [
+          overlayAsset({ location }),
+          overlayAsset({ symbol: 'TWO', location, forceOverride: true })
+        ]
+      })
+    ).toThrow(CustomAssetConflictError)
+  })
+
+  it('keeps entries with equal symbols but distinct locations', () => {
+    const result = normalizeCustomAssets({
+      Acala: [
+        overlayAsset({
+          symbol: 'SAME',
+          location: { parents: 1, interior: { X1: { GeneralIndex: '77' } } }
+        }),
+        overlayAsset({
+          symbol: 'SAME',
+          location: { parents: 1, interior: { X1: { GeneralIndex: '78' } } }
+        })
+      ]
+    })
+    expect(result.Acala).toHaveLength(2)
+  })
+
   it('handles a chain that has no base assets registered', () => {
     const entry = overlayAsset()
     const result = normalizeCustomAssets({ Hydration: [entry] })

@@ -5,6 +5,7 @@ import assetsMapJson from '../maps/assets.json' with { type: 'json' }
 import type {
   TAssetInfo,
   TAssetJsonMap,
+  TCustomAssetInfo,
   TCustomAssetsMap,
   TCustomAssetsMapNormalized,
   TCustomCtx
@@ -25,7 +26,15 @@ export const normalizeCustomAssets = (
       ...entry,
       location: canonicalizeLocation(entry.location)
     }))
+    const seen: { location: TCustomAssetInfo['location']; symbol: string }[] = []
     for (const entry of normalized) {
+      const duplicate = seen.find(s => deepEqual(s.location, entry.location))
+      if (duplicate) {
+        throw new CustomAssetConflictError(
+          `Custom asset '${entry.symbol}' on chain '${chain}' duplicates custom asset '${duplicate.symbol}' on the same location. Remove one of the entries: duplicates would resolve order-dependently (first match wins).`
+        )
+      }
+      seen.push({ location: entry.location, symbol: entry.symbol })
       if (entry.forceOverride) continue
       const clash = base.find(a => deepEqual(canonicalizeLocation(a.location), entry.location))
       if (clash) {
