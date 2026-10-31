@@ -167,6 +167,12 @@ describe('getRouterFees', () => {
       });
     });
 
+    it('forwards disableFallback to the swap fee lookup', async () => {
+      await getRouterFees(dex, options, true);
+
+      expect(getSwapFee).toHaveBeenCalledWith(dex, options, true);
+    });
+
     it('adds exchange to hops only when origin exists but destination undefined', async () => {
       options.origin = { chain: 'Acala', amount: 1000n } as unknown as TOriginInfo<unknown>;
 
